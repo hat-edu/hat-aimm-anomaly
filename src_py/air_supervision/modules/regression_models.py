@@ -6,10 +6,10 @@ import hat.event.server.common
 from src_py.air_supervision.modules.regression_model_generic import GenericModel, _register_event, RETURN_TYPE
 
 
-class MultiOutputSVR(GenericModel):
+class Cluster(GenericModel):
     def __init__(self, module):
         super().__init__(module)
-        self.name = 'MultiOutputSVR'
+        self.name = 'Cluster'
 
     def set_id(self, model_id):
         super().set_id(model_id)
@@ -24,10 +24,10 @@ class MultiOutputSVR(GenericModel):
         await super().predict(event)
 
 
-class linear(GenericModel):
+class Forest(GenericModel):
     def __init__(self, module):
         super().__init__(module)
-        self.name = 'linear'
+        self.name = 'Forest'
 
     def set_id(self, model_id):
         super().set_id(model_id)

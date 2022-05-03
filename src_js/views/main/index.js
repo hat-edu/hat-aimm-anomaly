@@ -19,17 +19,24 @@ export function trigger_notebook(){
 }
 
 export function plot() {
+    let l = r.get('remote', 'timeseries','timestamps','reading').length
     const layout = {
-        title: 'Timeseries model testing',
+        title: 'Timeseries anomaly model testing',
         xaxis: {
-            title: 'Hour',
+            title: 'Timestamp',
             showgrid: true,
-            range: [0, 72]
+            range: [
+                // '2013-07-06 06:00:00',
+                // '2013-10-06 06:00:00'
+
+                // r.get('remote', 'timeseries','timestamps','reading')[0],
+                // r.get('remote', 'timeseries','timestamps','reading')[l-1]
+            ]
         },
         yaxis: {
-            title: 'CO concentration',
+            title: 'Temperature',
             showline: false,
-            range: [600, 2100]
+            // range: [0, 2]
         }
     };
     const config = {
@@ -39,16 +46,17 @@ export function plot() {
     };
 
     const reading_trace = {
-        x: r.get('remote', 'timeseries', 'reading').keys(),
-        y: r.get('remote', 'timeseries', 'reading'),
+        x: r.get('remote', 'timeseries','timestamps','reading'),
+        y: r.get('remote', 'timeseries','values','reading'),
         line: { shape: 'spline' },
         type: 'scatter',
         name: 'Reading'
     };
     const forecast_trace = {
-        x: r.get('remote', 'timeseries', 'forecast').map((_, k) => k + 47),
-        y: r.get('remote', 'timeseries', 'forecast'),
-        line: { shape: 'spline' },
+        x: r.get('remote', 'timeseries','timestamps','forecast'),
+        y: r.get('remote', 'timeseries','values','forecast'),
+        // line: { shape: 'spline' },
+        mode: 'markers',
         type: 'scatter',
         name: 'Forecast'
     };
@@ -67,18 +75,18 @@ export function plot() {
         ['div',
             [["input",
             {
-                props: {type: 'radio', id: 'id1', name: 'modelSelect', value: 'linear' },
-                on: { click: () => on_radio_switch("linear") }
+                props: {type: 'radio', id: 'id1', name: 'modelSelect', value: 'Forest' },
+                on: { click: () => on_radio_switch("Forest") }
 
             }],
-            ["label",{props: {for: 'id1'}},'Linear'],
+            ["label",{props: {for: 'id1'}},'Forest'],
             ["input",
             {
-                props: {type: 'radio', id: 'id2', name: 'modelSelect', value: 'MultiOutputSVR' },
-                on: { click: () => on_radio_switch("MultiOutputSVR") }
+                props: {type: 'radio', id: 'id2', name: 'modelSelect', value: 'Cluster' },
+                on: { click: () => on_radio_switch("Cluster") }
 
             }],
-            ["label",{props: {for: 'id2'}},'MultiOutputSVR'],
+            ["label",{props: {for: 'id2'}},'Cluster'],
             ["input",
             {
                 props: {type: 'radio', id: 'id3', name: 'modelSelect', value: 'constant' },
@@ -113,21 +121,6 @@ export function plot() {
         ]
 
     ];
-
-//             'attrs': {
-//
-//             },
-//
-//             on: {
-//                 //click: () => trafoChange("Bus"),
-//                 mouseover: () => {
-//                     onHover(right - 10, down - length - 30, 20, length * 2 * 1.4, 'bus', id);
-//
-//                 }
-//
-//
-//
-//             }
 
 
 }

@@ -3,9 +3,13 @@ import pandas
 import numpy
 import hat.aio
 import hat.event.server.common
-
+import pandas as pd
+import numpy as np
 from enum import Enum
 
+from sklearn import preprocessing
+from sklearn.decomposition import PCA
+from sklearn.cluster import KMeans
 
 class RETURN_TYPE(Enum):
     PREDICT = 1
@@ -31,19 +35,35 @@ class GenericModel(ABC):
 
         if self._id:
 
-            df = pandas.read_csv('../../dataset/sanatized.csv')
-            goal = 'PT08.S1(CO)'
-            x, y = [], []
-            for i in range(48, len(df) - 24, 24):
-                x.append(df[goal][i - 48:i])
-                y.append(df[goal][i:i + 24])
-            x, y = numpy.array(x), numpy.array(y)
+            df = pandas.read_csv('../../dataset/ambient_temperature_system_failure.csv')
+            df['timestamp'] = pd.to_datetime(df['timestamp'])
+
+            df['hours'] = df['timestamp'].dt.hour
+            df['daylight'] = ((df['hours'] >= 7) & (df['hours'] <= 22)).astype(int)
+            df['DayOfTheWeek'] = df['timestamp'].dt.dayofweek
+            df['WeekDay'] = (df['DayOfTheWeek'] < 5).astype(int)
+
+            df['time_epoch'] = (df['timestamp'].astype(np.int64) / 100000000000).astype(np.int64)
+
+            # creation of 4 distinct categories that seem useful (week end/day week & night/day)
+            df['categories'] = df['WeekDay'] * 2 + df['daylight']
+
+
+            # Take useful feature and standardize them
+            data = df[['value', 'hours', 'daylight', 'DayOfTheWeek', 'WeekDay']]
+            # breakpoint()
+
+            new_data = []
+
+            for index, row in df.iterrows():
+                # print(row['value'], row['c2'])
+                new_data.append([row['value'],row['hours'],row['daylight'],row['DayOfTheWeek'], row['WeekDay']])
 
             events = await self.module._engine.register(
                 self.module._source,
                 [_register_event(('aimm', 'fit', self._id),
                                  {
-                                     'args': [x.tolist(), y.tolist()],
+                                     'args': [new_data, None],
                                      'kwargs': {
 
                                      }
@@ -66,11 +86,17 @@ class GenericModel(ABC):
         self.module._request_ids[return_id[0].event_id._asdict()['instance']] = (RETURN_TYPE.CREATE, self.name)
 
     async def predict(self, model_input):
+        new_data = []
+        for index, row in model_input.iterrows():
+            # print(row['value'], row['c2'])
+            new_data.append([row['value'], row['hours'], row['daylight'], row['DayOfTheWeek'], row['WeekDay']])
+
         events = await self.module._engine.register(
             self.module._source,
             [_register_event(('aimm', 'predict', self._id),
-                             {'args': [model_input],
-                              'kwargs': {}
+                             {'args': [new_data],
+                              'kwargs': {
+                              }
                               }
                              )])
 
