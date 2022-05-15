@@ -156,7 +156,7 @@ class ReadingsModule(hat.event.server.common.Module):
             int(d.weekday() < 5)
         ]
 
-        self._predictions.append([predict_row])
+        self._predictions.append(predict_row)
 
         self._data_tracker += 1
         if self._data_tracker % 5 == 0:
