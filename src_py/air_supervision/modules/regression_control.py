@@ -6,6 +6,7 @@ from enum import Enum
 import pandas as pd
 import sys
 import os
+import numpy as np
 from datetime import datetime
 
 sys.path.insert(0, '../../')
@@ -44,7 +45,13 @@ async def create(conf, engine):
     module._current_model_name = None
 
     module._column_names = ['timestamp', 'value', 'hours', 'daylight', 'DayOfTheWeek', 'WeekDay']
+
+
     module._readings_pd = pd.DataFrame(columns=module._column_names)
+    module._predictions = []
+    module._predictions_ready = []
+
+
     module._readings_done = None
     module._readings = []
 
@@ -114,8 +121,8 @@ class ReadingsModule(hat.event.server.common.Module):
                 pass
 
             if request_type == RETURN_TYPE.PREDICT:
-                tss = self._readings_done['timestamp'].tolist()
-                vals = self._readings_done['value'].tolist()
+                tss = list(np.array(self._predictions_ready)[:, 0])
+                vals = list(np.array(self._predictions_ready)[:, 1])
 
                 rez = [
                     self._process_event(
@@ -140,7 +147,7 @@ class ReadingsModule(hat.event.server.common.Module):
 
         d = datetime.strptime(event.payload.data['timestamp'], '%Y-%m-%d %H:%M:%S')
 
-        self._readings_pd.loc[len(self._readings_pd.index)] = [
+        predict_row = [
             event.payload.data['timestamp'],
             event.payload.data['value'],
             d.hour,
@@ -149,17 +156,45 @@ class ReadingsModule(hat.event.server.common.Module):
             int(d.weekday() < 5)
         ]
 
+        self._predictions.append([predict_row])
+
         self._data_tracker += 1
         if self._data_tracker % 5 == 0:
             if self._current_model_name:
                 try:
                     self._async_group.spawn(self._MODELS[self._current_model_name].predict,
-                                            self._readings_pd.drop('timestamp', axis=1))
+                                            np.array(self._predictions)[:, 1:])
                 except:
                     pass
 
-                self._readings_done = self._readings_pd.copy()
-                self._readings_pd = self._readings_pd[0:0]
+                # self._readings_done = self._readings_pd.copy()
+                # self._readings_pd = self._readings_pd[0:0]
+                self._predictions_ready = self._predictions.copy()
+                self._predictions = []
+
+        # self._data_tracker += 1
+        # if self._data_tracker % 5 == 0:
+        #     if self._current_model_name:
+        #         try:
+        #             self._async_group.spawn(self._MODELS[self._current_model_name].predict,
+        #                                     self._readings_pd.drop('timestamp', axis=1))
+        #         except:
+        #             pass
+        #
+        #         self._readings_done = self._readings_pd.copy()
+        #         self._readings_pd = self._readings_pd[0:0]
+
+
+
+
+        # self._readings_pd.loc[len(self._readings_pd.index)] = [
+        #     event.payload.data['timestamp'],
+        #     event.payload.data['value'],
+        #     d.hour,
+        #     int((d.hour >= 7) & (d.hour <= 22)),
+        #     d.weekday(),
+        #     int(d.weekday() < 5)
+        # ]
 
     def process_return(self, event):
 

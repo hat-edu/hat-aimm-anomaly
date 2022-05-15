@@ -79,21 +79,22 @@ export function plot() {
                 on: { click: () => on_radio_switch("Forest") }
 
             }],
-            ["label",{props: {for: 'id1'}},'Forest'],
-            ["input",
-            {
-                props: {type: 'radio', id: 'id2', name: 'modelSelect', value: 'Cluster' },
-                on: { click: () => on_radio_switch("Cluster") }
-
-            }],
-            ["label",{props: {for: 'id2'}},'Cluster'],
-            ["input",
-            {
-                props: {type: 'radio', id: 'id3', name: 'modelSelect', value: 'constant' },
-                on: { click: () => on_radio_switch("constant") }
-
-            }],
-            ["label",{props: {for: 'id3'}},'constant']]
+            // ["label",{props: {for: 'id1'}},'Forest'],
+            // ["input",
+            // {
+            //     props: {type: 'radio', id: 'id2', name: 'modelSelect', value: 'Cluster' },
+            //     on: { click: () => on_radio_switch("Cluster") }
+            //
+            // }],
+            // ["label",{props: {for: 'id2'}},'Cluster'],
+            // ["input",
+            // {
+            //     props: {type: 'radio', id: 'id3', name: 'modelSelect', value: 'constant' },
+            //     on: { click: () => on_radio_switch("constant") }
+            //
+            // }],
+            // ["label",{props: {for: 'id3'}},'constant']
+            ]
         ],
         ["button",
             {
