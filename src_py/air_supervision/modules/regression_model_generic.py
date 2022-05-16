@@ -83,7 +83,6 @@ class GenericModel(ABC):
 
 
 
-
         events = await self.module._engine.register(
             self.module._source,
             [_register_event(('aimm', 'predict', self._id),

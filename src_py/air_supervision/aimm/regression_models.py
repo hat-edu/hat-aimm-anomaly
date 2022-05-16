@@ -87,19 +87,31 @@ class Forest(aimm.plugins.Model):
         outliers_fraction = 0.01
         self.model = IsolationForest(contamination=outliers_fraction)
 
-    def fit(self, x, y):
-        pd.DataFrame(data=x, columns=['value', 'hours', 'daylight', 'DayOfTheWeek', 'WeekDay'])
+        self.scale_ = -1
+        self.mean_ = -1
 
+
+    def fit(self, x, y):
+        # pd.DataFrame(data=x, columns=['value', 'hours', 'daylight', 'DayOfTheWeek', 'WeekDay'])
         min_max_scaler = preprocessing.StandardScaler()
-        np_scaled = min_max_scaler.fit_transform(x)
-        data = pd.DataFrame(np_scaled)
+
+        self.mean_ = np.mean(x, axis=0)
+        self.scale_ = np.std(x, axis=0)
+
+        data = pd.DataFrame(min_max_scaler.fit_transform(x))
+
         # train isolation forest
         self.model.fit(data)
         return self
 
-    def predict(self, X):
-        rez = pd.Series(self.model.predict(X)).map({1: 0, -1: 1})
-        return rez.values.tolist()
+    def predict(self, x):
+
+
+        x = pd.DataFrame((np.array(x) - self.mean_) / self.scale_)
+        rez = pd.Series(self.model.predict(x)).map({1: 0, -1: 1}).values.tolist()
+
+
+        return rez
 
     def serialize(self):
         return pickle.dumps(self)

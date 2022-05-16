@@ -49,8 +49,9 @@ async def create(conf, engine):
 
     module._readings_pd = pd.DataFrame(columns=module._column_names)
     module._predictions = []
+    module._predictions_times = []
     module._predictions_ready = []
-
+    module._predictions_times_ready = []
 
     module._readings_done = None
     module._readings = []
@@ -118,11 +119,13 @@ class ReadingsModule(hat.event.server.common.Module):
 
             if request_type == RETURN_TYPE.FIT:
                 self._current_model_name = model_name
+
                 pass
 
             if request_type == RETURN_TYPE.PREDICT:
-                tss = list(np.array(self._predictions_ready)[:, 0])
-                vals = list(np.array(self._predictions_ready)[:, 1])
+
+                # tss = list(np.array(self._predictions_ready)[:, 0].astype(str))
+                vals = list(np.array(self._predictions_ready)[0,:])
 
                 rez = [
                     self._process_event(
@@ -131,7 +134,7 @@ class ReadingsModule(hat.event.server.common.Module):
                             'is_anomaly': r,
                             'value': v
                         })
-                    for r, t, v in zip(event.payload.data['result'], tss, vals)]
+                    for r, t, v in zip(event.payload.data['result'], self._predictions_times_ready, vals)]
 
                 return rez
 
@@ -145,56 +148,33 @@ class ReadingsModule(hat.event.server.common.Module):
 
     def process_reading(self, event):
 
-        d = datetime.strptime(event.payload.data['timestamp'], '%Y-%m-%d %H:%M:%S')
+        if self._current_model_name:
+            d = datetime.strptime(event.payload.data['timestamp'], '%Y-%m-%d %H:%M:%S')
+            predict_row = [float(event.payload.data['value']),
+                           d.hour,
+                           int((d.hour >= 7) & (d.hour <= 22)),
+                           d.weekday(),
+                           int(d.weekday() < 5)]
 
-        predict_row = [
-            event.payload.data['timestamp'],
-            event.payload.data['value'],
-            d.hour,
-            int((d.hour >= 7) & (d.hour <= 22)),
-            d.weekday(),
-            int(d.weekday() < 5)
-        ]
+            self._predictions_times.append(str(d))
+            self._predictions.append(predict_row)
 
-        self._predictions.append(predict_row)
+            self._data_tracker += 1
+            if self._data_tracker >= 5:
 
-        self._data_tracker += 1
-        if self._data_tracker % 5 == 0:
-            if self._current_model_name:
                 try:
-                    self._async_group.spawn(self._MODELS[self._current_model_name].predict,
-                                            np.array(self._predictions)[:, 1:])
+                    self._async_group.spawn(self._MODELS[self._current_model_name].predict, np.array(self._predictions))
                 except:
                     pass
 
                 # self._readings_done = self._readings_pd.copy()
                 # self._readings_pd = self._readings_pd[0:0]
                 self._predictions_ready = self._predictions.copy()
+                self._predictions_times_ready = self._predictions_times.copy()
                 self._predictions = []
+                self._predictions_times = []
+                self._data_tracker = 0
 
-        # self._data_tracker += 1
-        # if self._data_tracker % 5 == 0:
-        #     if self._current_model_name:
-        #         try:
-        #             self._async_group.spawn(self._MODELS[self._current_model_name].predict,
-        #                                     self._readings_pd.drop('timestamp', axis=1))
-        #         except:
-        #             pass
-        #
-        #         self._readings_done = self._readings_pd.copy()
-        #         self._readings_pd = self._readings_pd[0:0]
-
-
-
-
-        # self._readings_pd.loc[len(self._readings_pd.index)] = [
-        #     event.payload.data['timestamp'],
-        #     event.payload.data['value'],
-        #     d.hour,
-        #     int((d.hour >= 7) & (d.hour <= 22)),
-        #     d.weekday(),
-        #     int(d.weekday() < 5)
-        # ]
 
     def process_return(self, event):
 
@@ -208,9 +188,8 @@ class ReadingsModule(hat.event.server.common.Module):
                 self._current_model_name = model_name
                 return
 
-        MyClass = getattr(importlib.import_module("src_py.air_supervision.modules.regression_models"), model_n)
-
-        self._MODELS[model_n] = MyClass(self)
+        NewModel = getattr(importlib.import_module("src_py.air_supervision.modules.regression_models"), model_n)
+        self._MODELS[model_n] = NewModel(self)
 
         try:
             self._async_group.spawn(self._MODELS[model_n].create_instance)
