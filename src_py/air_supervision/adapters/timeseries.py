@@ -23,6 +23,7 @@ async def create_adapter(conf, event_client):
     adapter._event_client = event_client
     adapter._session = set()
 
+    adapter._info = {}
     adapter._series_values = {
         'reading': [],
         'forecast': []}
@@ -63,13 +64,9 @@ class Adapter(hat.gui.common.Adapter):
                 pass
             for event in events:
                 if event.event_type[1] == 'log':
-                    if event.event_type[2] == 'model_change':
-                        if 'model_now' in event.payload.data['kwargs']:
-                            self._series_values['model_before'] = event.payload.data['kwargs']['model_before']
-                            self._series_values['model_now'] = event.payload.data['kwargs']['model_now']
+                    # self._info[event.event_type[2]] = event.payload.data
 
-                    if event.event_type[2] in ['model_action', 'model_state']:
-                        self._series_values[event.event_type[2]] = event.payload.data
+                    self._info = dict(self._info, **{event.event_type[2]: event.payload.data})
 
                 else:  # reading or forecast
 
@@ -84,8 +81,8 @@ class Adapter(hat.gui.common.Adapter):
                     self._series_values = dict(self._series_values, **{series_id: self._series_values[series_id] + [value]})
                     self._series_timestamps = dict(self._series_timestamps, **{series_id: self._series_timestamps[series_id] + [timestamp]})
 
-            # list_obj = [{}, {}, {}]
-            # list_obj.sort(key=lambda x: x['ts'])
+
+
             if len(self._series_values['reading']) > 71:
                 self._series_values['reading'].pop(0)
                 self._series_timestamps['reading'].pop(0)
@@ -100,9 +97,6 @@ class Adapter(hat.gui.common.Adapter):
                 self._series_timestamps['forecast'] = [i for i in sorted__forecast_ts if i >= m]
                 self._series_values['forecast'] = sorted_forcast[-len(self._series_timestamps['forecast']):]
 
-            # if len(self._series_values['forecast']) > 15:
-            #     self._series_values['forecast'] = self._series_values['forecast'][-15:]
-            #     self._series_timestamps['forecast'] = self._series_timestamps['forecast'][-15:]
 
             if self._session:
                 self._session._on_state_change()
@@ -136,10 +130,14 @@ class Session(hat.gui.common.AdapterSession):
                     data = await self._juggler_client.receive()  # sent data
                     # print("CB..")
 
+                    if data['action'] == 'setting_change':
+                        event_type = ('back_action', 'setting_change')
+                    elif data['action'] == 'model_change':
+                        event_type = ('back_action', 'model_change')
                     # sending data to module 'module'
                     self._adapter._event_client.register(([
                         hat.event.common.RegisterEvent(
-                            event_type=('backValue', 'backValue', 'modelChange'),
+                            event_type=event_type,
                             source_timestamp=None,
                             payload=hat.event.common.EventPayload(
                                 type=hat.event.common.EventPayloadType.JSON,
@@ -164,5 +162,6 @@ class Session(hat.gui.common.AdapterSession):
             'timestamps': {
                 'reading': [str(ts) for ts in self._adapter._series_timestamps['reading']],
                 'forecast': [str(ts) for ts in self._adapter._series_timestamps['forecast']],
-            }
+            },
+            'info': self._adapter._info
         })

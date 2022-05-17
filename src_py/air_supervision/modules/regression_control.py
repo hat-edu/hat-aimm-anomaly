@@ -22,6 +22,12 @@ json_schema_repo = None
 _source_id = 0
 
 
+class PREDICTION_STATUS(Enum):
+    NOT_FITTED_YET = 0
+    ACQUIRING_DATA = 1
+    SENDING = 2
+
+
 async def create(conf, engine):
     module = ReadingsModule()
     # module.model_control = ModelControl()
@@ -36,32 +42,24 @@ async def create(conf, engine):
     module._subscription = hat.event.server.common.Subscription([
         ('aimm', '*'),
         ('gui', 'system', 'timeseries', 'reading'),
-        ('backValue', 'backValue', '*')])
+        ('back_action', '*')])
     module._async_group = hat.aio.Group()
     module._engine = engine
 
     module._model_ids = {}
-
     module._current_model_name = None
+    # module.prediction_status = PREDICTION_STATUS.NOT_FITTED_YET
 
-    module._column_names = ['timestamp', 'value', 'hours', 'daylight', 'DayOfTheWeek', 'WeekDay']
-
-
-    module._readings_pd = pd.DataFrame(columns=module._column_names)
     module._predictions = []
     module._predictions_times = []
-    module._predictions_ready = []
-    module._predictions_times_ready = []
 
     module._readings_done = None
     module._readings = []
-
-    module._data_tracker = 0
+    module.data_tracker = 0
 
     module._request_id = None
 
     module._MODELS = {}
-
     module._request_ids = {}
 
     return module
@@ -81,17 +79,20 @@ class ReadingsModule(hat.event.server.common.Module):
         return ReadingsSession(self._engine, self,
                                self._async_group.create_subgroup())
 
-    def send_message(self, event, type_name):
+
+
+    def send_message(self, data, type_name):
 
         async def send_log_message():
             await self._engine.register(
                 self._source,
-                [_register_event(('gui', 'log', type_name), event.payload.data)])
+                [_register_event(('gui', 'log', type_name), data)])
 
         try:
             self._async_group.spawn(send_log_message)
         except:
             pass
+
     def process_state(self, event):
         if not event.payload.data['models'] or not self._MODELS:
             return
@@ -102,7 +103,7 @@ class ReadingsModule(hat.event.server.common.Module):
                 if model_name == m_name:
                     model_inst.set_id(model_id)
 
-        self.send_message(event, 'model_state')
+        self.send_message(event.payload.data, 'model_state')
 
     def process_action(self, event):
         if (request_instance := event.payload.data.get('request_id')['instance']) in self._request_ids \
@@ -114,18 +115,19 @@ class ReadingsModule(hat.event.server.common.Module):
             if request_type == RETURN_TYPE.CREATE:
                 try:
                     self._async_group.spawn(self._MODELS[model_name].fit)
+                    self.send_message(model_name, 'new_current_model')
+                    self.send_message({'name': 'Precision', 'value': 0.02 }, 'setting')
                 except:
                     pass
 
             if request_type == RETURN_TYPE.FIT:
                 self._current_model_name = model_name
-
                 pass
 
             if request_type == RETURN_TYPE.PREDICT:
+                #send to adapter
 
-                # tss = list(np.array(self._predictions_ready)[:, 0].astype(str))
-                vals = list(np.array(self._predictions_ready)[0,:])
+                vals = np.array(self._predictions[-5:])[:, 0]
 
                 rez = [
                     self._process_event(
@@ -134,8 +136,10 @@ class ReadingsModule(hat.event.server.common.Module):
                             'is_anomaly': r,
                             'value': v
                         })
-                    for r, t, v in zip(event.payload.data['result'], self._predictions_times_ready, vals)]
+                    for r, t, v in zip(event.payload.data['result'], self._predictions_times[-5:], vals)]
 
+                self._predictions_times = self._predictions_times[-5:]
+                self._predictions = self._predictions[-5:]
                 return rez
 
     def process_aimm(self, event):
@@ -159,24 +163,29 @@ class ReadingsModule(hat.event.server.common.Module):
             self._predictions_times.append(str(d))
             self._predictions.append(predict_row)
 
-            self._data_tracker += 1
-            if self._data_tracker >= 5:
+            self.data_tracker += 1
+            if self.data_tracker >= 5:
 
                 try:
-                    self._async_group.spawn(self._MODELS[self._current_model_name].predict, np.array(self._predictions))
+                    self._async_group.spawn(
+                        self._MODELS[self._current_model_name].predict, np.array(self._predictions[-5:]))
                 except:
                     pass
-
-                # self._readings_done = self._readings_pd.copy()
-                # self._readings_pd = self._readings_pd[0:0]
-                self._predictions_ready = self._predictions.copy()
-                self._predictions_times_ready = self._predictions_times.copy()
-                self._predictions = []
-                self._predictions_times = []
-                self._data_tracker = 0
+                self.data_tracker = 0
 
 
+    def process_setting_change(self,event):
+
+        return
     def process_return(self, event):
+        if event.event_type[-1] == 'setting_change':
+            self.process_setting_change(event)
+            return
+
+        elif event.event_type[-1] == 'model_change':
+            pass
+
+
 
         model_n = 'constant'
         if 'model' in event.payload.data:
@@ -188,8 +197,8 @@ class ReadingsModule(hat.event.server.common.Module):
                 self._current_model_name = model_name
                 return
 
-        NewModel = getattr(importlib.import_module("src_py.air_supervision.modules.regression_models"), model_n)
-        self._MODELS[model_n] = NewModel(self)
+        self._MODELS[model_n] = \
+            getattr(importlib.import_module("src_py.air_supervision.modules.regression_models"), model_n)(self)
 
         try:
             self._async_group.spawn(self._MODELS[model_n].create_instance)
@@ -221,7 +230,7 @@ class ReadingsSession(hat.event.server.common.ModuleSession):
             result = {
                 'aimm': self._module.process_aimm,
                 'gui': self._module.process_reading,
-                'backValue': self._module.process_return
+                'back_action': self._module.process_return
 
             }[event.event_type[0]](event)
 

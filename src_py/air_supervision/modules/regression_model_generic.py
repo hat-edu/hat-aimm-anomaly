@@ -44,6 +44,8 @@ class GenericModel(ABC):
                     timestamp = datetime.strptime(line[0].split(',')[0], '%Y-%m-%d %H:%M:%S')
                     value = float(line[0].split(',')[1])
 
+                    value = (float(value) - 32) * 5 / 9
+
                     train_data.append([
                         value,
                         timestamp.hour,

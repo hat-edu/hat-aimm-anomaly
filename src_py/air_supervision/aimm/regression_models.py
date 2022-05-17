@@ -84,15 +84,13 @@ class Cluster(aimm.plugins.Model):
 class Forest(aimm.plugins.Model):
 
     def __init__(self):
-        outliers_fraction = 0.01
+        outliers_fraction = 0.2
         self.model = IsolationForest(contamination=outliers_fraction)
 
         self.scale_ = -1
         self.mean_ = -1
 
-
     def fit(self, x, y):
-        # pd.DataFrame(data=x, columns=['value', 'hours', 'daylight', 'DayOfTheWeek', 'WeekDay'])
         min_max_scaler = preprocessing.StandardScaler()
 
         self.mean_ = np.mean(x, axis=0)
@@ -106,12 +104,9 @@ class Forest(aimm.plugins.Model):
 
     def predict(self, x):
 
+        x = pd.DataFrame((x - self.mean_) / self.scale_)
+        return pd.Series(self.model.predict(x)).map({1: 0, -1: 1}).values.tolist()
 
-        x = pd.DataFrame((np.array(x) - self.mean_) / self.scale_)
-        rez = pd.Series(self.model.predict(x)).map({1: 0, -1: 1}).values.tolist()
-
-
-        return rez
 
     def serialize(self):
         return pickle.dumps(self)
