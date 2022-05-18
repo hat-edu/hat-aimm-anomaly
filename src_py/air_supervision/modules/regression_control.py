@@ -112,8 +112,8 @@ class ReadingsModule(hat.event.server.common.Module):
                 try:
                     self._async_group.spawn(self._MODELS[model_name].fit)
                     self.send_message(model_name, 'new_current_model')
-                    setting = self._MODELS[model_name].get_default_setting() #{'name': 'Precision', 'value': 0.02}
-                    self.send_message(setting, 'setting')
+                    hyperparameters = self._MODELS[model_name].get_default_setting() #{'name': 'Precision', 'value': 0.02}
+                    self.send_message(hyperparameters, 'setting')
                 except:
                     pass
 
@@ -188,9 +188,20 @@ class ReadingsModule(hat.event.server.common.Module):
             pass
 
     def process_setting_change(self, event):
-        self._MODELS[self._current_model_name].set_default_setting(
-            event.payload.data["setting_name"],
-            event.payload.data["value"])
+
+        kw = event.payload.data
+        del kw['action']
+
+        try:
+            self._async_group.spawn(self._MODELS[self._current_model_name].fit, **kw)
+        except:
+            pass
+
+
+        # self._async_group.spawn(self._MODELS[model_name].fit)
+        # self.send_message(model_name, 'new_current_model')
+        # setting = self._MODELS[model_name].get_default_setting()  # {'name': 'Precision', 'value': 0.02}
+        # self.send_message(setting, 'setting')
 
 
     def process_back_value(self, event):

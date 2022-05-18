@@ -73,19 +73,42 @@ export function plot() {
 
     const changed_setting = function (e) {
          console.log("changed to: " + e.target.value);
-         hat.conn.send('timeseries', {
+         hat.conn.send('timeseries',
+             {
              'action': 'setting_change',
-             'setting_name': setting_name ,
-             'value': e.target.value});
+             [setting_name]: e.target.value});
     }
 
-    // function change_model_settings(){
-    //    console.log("New setting: " + setting_new_value);
-    //    // hat.conn.send('timeseries', {'setting_name': setting , 'value': new_value});
-    //
-    // }
 
+    const generate_setting_inputs = function () {
+            if (!r.get('remote','timeseries','info','setting')) return;
 
+            var t = Object.entries(r.get('remote','timeseries','info','setting')).map(function([key,value],index) {
+                          return ["div",[
+                ["label",{props: {for: 'input1'}}, key  ],
+                ["input",{
+                            props: {
+                                disabled: !cur_model_name,
+                                id: 'input1',
+                                value: value },
+                            on: {
+                                //change: changed_setting
+                                change: function (e) {
+                                    console.log("changed to: " + e.target.value);
+                                    hat.conn.send('timeseries',
+                                     {
+                                     'action': 'setting_change',
+                                     [key]: e.target.value});
+                                }
+
+                            }
+                        }],
+                    ]]
+
+                   });
+
+             return ["div",t];
+    }
 
     return ['div',
         [
@@ -93,17 +116,7 @@ export function plot() {
             ["label",{props: {for: 'input2'}},' Current Model '],
             ["input",{props: {disabled: true, id: 'input2',value: cur_model_name }}],
             ["br"],
-            ["label",{props: {for: 'input1'}}, r.get('remote','timeseries','info','setting','name')  ],
-            ["input",{
-                props: {
-                    disabled: !cur_model_name,
-                    id: 'input1',
-                    value: r.get('remote','timeseries','info','setting','value')  },
-                on: {
-                    change: changed_setting
-
-                }
-            }],
+            generate_setting_inputs(),
             ["br"],
             // ["button",
             //         {

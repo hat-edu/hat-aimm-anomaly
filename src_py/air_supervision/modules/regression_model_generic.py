@@ -15,11 +15,7 @@ class RETURN_TYPE(Enum):
 class GenericModel(ABC):
 
     def get_default_setting(self):
-        return {'name': 'PrecisionDEF', 'value': -1}
-
-    def set_default_setting(self, name, value):
-        d = {'name': name, 'value': value}
-        self.fit(**d)
+        return self.hyperparameters
 
     def __init__(self, module, name="undefined"):
         self.module = module
@@ -27,6 +23,8 @@ class GenericModel(ABC):
         self._id = None
         self.name = name
         self.created = False
+
+        self.hyperparameters = {}
 
     def set_id(self, model_id):
         self._id = model_id
@@ -51,16 +49,17 @@ class GenericModel(ABC):
             train_data = self._get_dataset()
 
             event_type = ('aimm', 'fit', self._id)
-            if 'name' in kwargs:
-                data = {'args': [train_data, None], 'kwargs': {'additional': kwargs['value']}}
-            else:
-                data = {'args': [train_data, None], 'kwargs': {}}
+
+            data = {'args': [train_data, None], 'kwargs': kwargs}
+
             await self._register_event(event_type, data, RETURN_TYPE.FIT)
 
-    async def _create_instance(self, model_name):
+    async def create_instance(self, **kwargs):
 
         event_type = ('aimm', 'create_instance')
-        data = {'model_type': model_name, 'args': [], 'kwargs': {}}
+        data = {'model_type': 'air_supervision.aimm.regression_models.' + self.name,
+                'args': [],
+                'kwargs': kwargs}
         await self._register_event(event_type, data, RETURN_TYPE.CREATE)
 
     async def predict(self, model_input):

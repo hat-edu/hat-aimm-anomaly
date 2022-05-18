@@ -10,70 +10,35 @@ class SVM(GenericModel):
     def __init__(self, module, name):
         super().__init__(module, name)
 
-    def set_id(self, model_id):
-        super().set_id(model_id)
-
-    def get_default_setting(self):
-        # super().get_default_setting()
-        return {'name': 'SVGDefault', 'value': -2}
-
-    def set_default_setting(self, name, value):
-        super().set_default_setting(name, value)
-
-    async def fit(self):
-        await super().fit()
-
-    async def create_instance(self):
-        await super()._create_instance('air_supervision.aimm.regression_models.' + self.name)
-
-    async def predict(self, event):
-        await super().predict(event)
+        self.hyperparameters = {
+            'contamination': 0.3,
+            'svm1': 1,
+            'svm2': 'R'
+        }
 
 
 class Cluster(GenericModel):
     def __init__(self, module, name):
         super().__init__(module, name)
 
-    def set_id(self, model_id):
-        super().set_id(model_id)
+        self.hyperparameters = {
+            'contamination': 0.3,
+            'cluster1': 1,
+            'cluster2': 'R'
+        }
 
-    def get_default_setting(self):
-        # super().get_default_setting()
-        return {'name': 'ClusterDefault', 'value': -2}
-
-    def set_default_setting(self, name, value):
-        super().set_default_setting(name, value)
-
-    async def fit(self):
-        await super().fit()
-
-    async def create_instance(self):
-        await super()._create_instance('air_supervision.aimm.regression_models.' + self.name)
-
-    async def predict(self, event):
-        await super().predict(event)
 
 
 class Forest(GenericModel):
     def __init__(self, module, name):
         super().__init__(module, name)
 
-    def set_id(self, model_id):
-        super().set_id(model_id)
+        self.hyperparameters = {
+            'contamination': 0.3,
+            'other_test_p': 1,
+            'third' : 'R'
+        }
 
-    def get_default_setting(self):
-        # super().get_default_setting()
-        return {'name': 'ForestDefault', 'value': -2}
 
-    def set_default_setting(self, name, value):
-        super().set_default_setting(name, value)
 
-    async def fit(self):
-        await super().fit()
-
-    async def create_instance(self):
-        await super()._create_instance('air_supervision.aimm.regression_models.' + self.name)
-
-    async def predict(self, event):
-        await super().predict(event)
 

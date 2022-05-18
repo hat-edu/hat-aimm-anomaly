@@ -78,10 +78,10 @@ class Adapter(hat.gui.common.Adapter):
                         if event.payload.data['is_anomaly'] <= 0:
                             continue
 
-                    self._series_values = dict(self._series_values, **{series_id: self._series_values[series_id] + [value]})
-                    self._series_timestamps = dict(self._series_timestamps, **{series_id: self._series_timestamps[series_id] + [timestamp]})
-
-
+                    self._series_values = dict(self._series_values,
+                                               **{series_id: self._series_values[series_id] + [value]})
+                    self._series_timestamps = dict(self._series_timestamps,
+                                                   **{series_id: self._series_timestamps[series_id] + [timestamp]})
 
             if len(self._series_values['reading']) > 71:
                 self._series_values['reading'].pop(0)
@@ -96,7 +96,6 @@ class Adapter(hat.gui.common.Adapter):
 
                 self._series_timestamps['forecast'] = [i for i in sorted__forecast_ts if i >= m]
                 self._series_values['forecast'] = sorted_forcast[-len(self._series_timestamps['forecast']):]
-
 
             if self._session:
                 self._session._on_state_change()

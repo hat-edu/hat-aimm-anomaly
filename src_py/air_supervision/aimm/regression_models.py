@@ -85,18 +85,18 @@ class Cluster(aimm.plugins.Model):
 class Forest(aimm.plugins.Model):
 
     def __init__(self):
-        outliers_fraction = 0.2
-        self.model = IsolationForest(contamination=outliers_fraction)
+        self.outliers_fraction = 0.2
+        self.model = IsolationForest(contamination=self.outliers_fraction)
 
         self.scale_ = -1
         self.mean_ = -1
 
     def fit(self, x, y, **kwargs):
 
-        if 'additional' in kwargs:
-            outliers_fraction = float(kwargs['additional'])
-            if 0 < outliers_fraction < 1:
-                self.model = IsolationForest(contamination=outliers_fraction)
+        if 'contamination' in kwargs:
+            if 0 < float(kwargs['contamination']) <= 0.5:
+                self.outliers_fraction = float(kwargs['contamination'])
+                self.model = IsolationForest(contamination=self.outliers_fraction)
 
         min_max_scaler = preprocessing.StandardScaler()
 
