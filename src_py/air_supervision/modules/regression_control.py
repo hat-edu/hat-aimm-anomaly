@@ -21,12 +21,10 @@ json_schema_id = None
 json_schema_repo = None
 _source_id = 0
 
-
-class PREDICTION_STATUS(Enum):
-    NOT_FITTED_YET = 0
-    ACQUIRING_DATA = 1
-    SENDING = 2
-
+# class PREDICTION_STATUS(Enum):
+#     NOT_FITTED_YET = 0
+#     ACQUIRING_DATA = 1
+#     SENDING = 2
 
 async def create(conf, engine):
     module = ReadingsModule()
@@ -48,7 +46,6 @@ async def create(conf, engine):
 
     module._model_ids = {}
     module._current_model_name = None
-    # module.prediction_status = PREDICTION_STATUS.NOT_FITTED_YET
 
     module._predictions = []
     module._predictions_times = []
@@ -79,8 +76,6 @@ class ReadingsModule(hat.event.server.common.Module):
         return ReadingsSession(self._engine, self,
                                self._async_group.create_subgroup())
 
-
-
     def send_message(self, data, type_name):
 
         async def send_log_message():
@@ -93,15 +88,16 @@ class ReadingsModule(hat.event.server.common.Module):
         except:
             pass
 
-    def process_state(self, event):
+    def update_models_ids(self, event):
         if not event.payload.data['models'] or not self._MODELS:
             return
 
-        for model_id, model_name in event.payload.data['models'].items():
-            model_name = model_name.rsplit('.', 1)[-1]
-            for m_name, model_inst in self._MODELS.items():
-                if model_name == m_name:
-                    model_inst.set_id(model_id)
+        for aimm_model_id, aimm_model_name in event.payload.data['models'].items():
+            aimm_model_name = aimm_model_name.rsplit('.', 1)[-1]
+
+            for saved_model_name, saved_model_inst in self._MODELS.items():
+                if aimm_model_name == saved_model_name:
+                    saved_model_inst.set_id(aimm_model_id)
 
         self.send_message(event.payload.data, 'model_state')
 
@@ -116,7 +112,8 @@ class ReadingsModule(hat.event.server.common.Module):
                 try:
                     self._async_group.spawn(self._MODELS[model_name].fit)
                     self.send_message(model_name, 'new_current_model')
-                    self.send_message({'name': 'Precision', 'value': 0.02 }, 'setting')
+                    setting = self._MODELS[model_name].get_default_setting() #{'name': 'Precision', 'value': 0.02}
+                    self.send_message(setting, 'setting')
                 except:
                     pass
 
@@ -125,7 +122,7 @@ class ReadingsModule(hat.event.server.common.Module):
                 pass
 
             if request_type == RETURN_TYPE.PREDICT:
-                #send to adapter
+                # send to adapter
 
                 vals = np.array(self._predictions[-5:])[:, 0]
 
@@ -145,7 +142,7 @@ class ReadingsModule(hat.event.server.common.Module):
     def process_aimm(self, event):
 
         if event.event_type[1] == 'state':
-            return self.process_state(event)
+            return self.update_models_ids(event)
 
         elif event.event_type[1] == 'action':
             return self.process_action(event)
@@ -173,37 +170,35 @@ class ReadingsModule(hat.event.server.common.Module):
                     pass
                 self.data_tracker = 0
 
+    def process_model_change(self, event):
+        received_model_name = event.payload.data['model']
 
-    def process_setting_change(self,event):
-
-        return
-    def process_return(self, event):
-        if event.event_type[-1] == 'setting_change':
-            self.process_setting_change(event)
+        if received_model_name in self._MODELS:
+            self._current_model_name = received_model_name
+            self.send_message(received_model_name, 'new_current_model')
             return
 
-        elif event.event_type[-1] == 'model_change':
-            pass
-
-
-
-        model_n = 'constant'
-        if 'model' in event.payload.data:
-            model_n = event.payload.data['model']
-
-        # IGNORED ON FIRST RUN
-        for model_name, model_inst in self._MODELS.items():
-            if model_n == model_name:
-                self._current_model_name = model_name
-                return
-
-        self._MODELS[model_n] = \
-            getattr(importlib.import_module("src_py.air_supervision.modules.regression_models"), model_n)(self)
+        path = "src_py.air_supervision.modules.regression_models"
+        self._MODELS[received_model_name] = \
+            getattr(importlib.import_module(path), received_model_name)(self, received_model_name)
 
         try:
-            self._async_group.spawn(self._MODELS[model_n].create_instance)
+            self._async_group.spawn(self._MODELS[received_model_name].create_instance)
         except:
             pass
+
+    def process_setting_change(self, event):
+        self._MODELS[self._current_model_name].set_default_setting(
+            event.payload.data["setting_name"],
+            event.payload.data["value"])
+
+
+    def process_back_value(self, event):
+
+        {
+            'setting_change': self.process_setting_change,
+            'model_change': self.process_model_change
+        }[event.event_type[-1]](event)
 
     def _process_event(self, event_type, payload, source_timestamp=None):
         return self._engine.create_process_event(
@@ -230,7 +225,7 @@ class ReadingsSession(hat.event.server.common.ModuleSession):
             result = {
                 'aimm': self._module.process_aimm,
                 'gui': self._module.process_reading,
-                'back_action': self._module.process_return
+                'back_action': self._module.process_back_value
 
             }[event.event_type[0]](event)
 

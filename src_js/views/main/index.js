@@ -13,6 +13,16 @@ export function on_radio_switch(model_type){
     hat.conn.send('timeseries', {'action': 'model_change', 'model': model_type});
 }
 
+export function change_button_color(model_type){
+    const models = r.get('remote','timeseries','info','model_state','models');
+    if (!models) return '';
+    for (const [key, value] of Object.entries(models)) {
+      if (value.split(".").at(-1) === model_type ) return 'border: 3px solid green;'
+
+    }
+    return '';
+
+}
 
 export function plot() {
     let l = r.get('remote', 'timeseries','timestamps','reading').length
@@ -75,6 +85,8 @@ export function plot() {
     //
     // }
 
+
+
     return ['div',
         [
 
@@ -114,6 +126,7 @@ export function plot() {
                             disabled: cur_model_name === 'Forest',
                             type: 'checkbox', id: 'id1',
                             name: 'modelSelect',
+                            style: change_button_color('Forest'),
                             value: 'Forest' },
                         on: {  click: () => on_radio_switch("Forest") }
 
@@ -122,7 +135,13 @@ export function plot() {
                 ],
                 ["button",
                     {
-                        props: {disabled: true , type: 'checkbox', id: 'id2', name: 'modelSelect', value: 'Cluster' },
+                        props: {
+                            disabled: cur_model_name === 'Cluster',
+                            type: 'checkbox',
+                            id: 'id2',
+                            style: change_button_color('Cluster'),
+                            name: 'modelSelect',
+                            value: 'Cluster' },
                         on: { click: () => on_radio_switch("Cluster") }
 
                     },
@@ -134,12 +153,13 @@ export function plot() {
                             disabled: cur_model_name === 'SVM',
                             type: 'checkbox',
                             id: 'id3',
+                            style: change_button_color('SVM'),
                             name: 'modelSelect',
                             value: 'SVM' },
                         on: { click: () => on_radio_switch("SVM")}
 
                     },
-                    "SVM"
+                    "One class SVM"
                 ]
             ]
         ],
