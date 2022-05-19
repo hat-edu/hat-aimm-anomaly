@@ -3,7 +3,7 @@ import numpy
 import hat.aio
 import hat.event.server.common
 
-from src_py.air_supervision.modules.model_controller_generic import GenericModel
+from air_supervision.modules.model_controller_generic import GenericModel
 
 class SVM(GenericModel):
     def __init__(self, module, name):

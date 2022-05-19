@@ -6,7 +6,7 @@ components:
 -   args:
     - hat-syslog
     - --conf
-    - ./data/syslog.yaml
+    - ./conf/syslog.yaml
     delay: 0
     name: monitor
     revive: false
@@ -17,7 +17,7 @@ components:
 -   args:
     - hat-manager
     - --conf
-    - ./data/manager.yaml
+    - ./conf/manager.yaml
     delay: 2
     name: monitor
     revive: false
@@ -28,7 +28,7 @@ components:
 -   args:
     - hat-monitor
     - --conf
-    - ./data/monitor.yaml
+    - ./conf/monitor.yaml
     delay: 0
     name: monitor
     revive: false
@@ -39,7 +39,7 @@ components:
 -   args:
     - hat-event
     - --conf
-    - ./data/event.yaml
+    - ./conf/event.yaml
     delay: 1
     name: event
     revive: false
@@ -50,7 +50,7 @@ components:
 -   args:
     - hat-gateway
     - --conf
-    - ./data/gateway.yaml
+    - ./conf/gateway.yaml
     delay: 2
     name: gateway
     revive: false
@@ -61,7 +61,7 @@ components:
 -   args:
     - hat-gui
     - --conf
-    - ./data/gui.yaml
+    - ./conf/gui.yaml
     delay: 3
     name: gui
     revive: false
@@ -72,7 +72,7 @@ components:
 -   args:
     - aimm-server
     - --conf
-    - ./data/aimm.yaml
+    - ./conf/aimm.yaml
     delay: 3
     name: aimm
     revive: false

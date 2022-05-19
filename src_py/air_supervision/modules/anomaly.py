@@ -5,7 +5,7 @@ import numpy as np
 from datetime import datetime
 sys.path.insert(0, '../../')
 import importlib
-from src_py.air_supervision.modules.model_controller_generic import RETURN_TYPE
+from air_supervision.modules.model_controller_generic import RETURN_TYPE
 import logging
 
 mlog = logging.getLogger(__name__)
@@ -157,7 +157,7 @@ class ReadingsModule(hat.event.server.common.Module):
 
 
         self._MODELS[received_model_name] = \
-            getattr(importlib.import_module("src_py.air_supervision.modules.model_controller"), received_model_name)(self, received_model_name)
+            getattr(importlib.import_module("air_supervision.modules.model_controller"), received_model_name)(self, received_model_name)
 
         try:
             self._async_group.spawn(self._MODELS[received_model_name].create_instance)

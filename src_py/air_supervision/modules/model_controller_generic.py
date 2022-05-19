@@ -81,7 +81,7 @@ class GenericModel(ABC):
 
         train_data = []
 
-        with open("../../dataset/ambient_temperature_system_failure.csv", "r") as f:
+        with open("dataset/ambient_temperature_system_failure.csv", "r") as f:
             reader = csv.reader(f, delimiter="\t")
             for i, line in enumerate(reader):
                 if not i:
