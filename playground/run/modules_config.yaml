@@ -1,0 +1,10 @@
+---
+ local-models-path: "src_py.air_supervision.modules.model_controller"
+ aimm-models-path: "air_supervision.aimm.anomaly_models."
+
+ supported-models:
+   - SVM
+   - Forest
+   - Cluster
+
+

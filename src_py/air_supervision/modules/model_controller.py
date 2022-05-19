@@ -5,9 +5,6 @@ import hat.event.server.common
 
 from src_py.air_supervision.modules.model_controller_generic import GenericModel
 
-supported_models = ['Forest', 'SVM', 'Cluster']
-
-
 class SVM(GenericModel):
     def __init__(self, module, name):
         super().__init__(module, name)
@@ -15,7 +12,7 @@ class SVM(GenericModel):
         self.hyperparameters = {
             'contamination': 0.3,
             'svm1': 1,
-            'svm2': 'R'
+            'svm2': 2
         }
 
 
@@ -26,7 +23,7 @@ class Cluster(GenericModel):
         self.hyperparameters = {
             'contamination': 0.3,
             'cluster1': 1,
-            'cluster2': 'R'
+            'cluster2': 3
         }
 
 
@@ -38,7 +35,7 @@ class Forest(GenericModel):
         self.hyperparameters = {
             'contamination': 0.3,
             'other_test_p': 1,
-            'third' : 'R'
+            'third' : 4
         }
 
 

@@ -5,8 +5,7 @@ import numpy as np
 from datetime import datetime
 sys.path.insert(0, '../../')
 import importlib
-from src_py.air_supervision.modules.model_controller_generic import RETURN_TYPE
-from src_py.air_supervision.modules.model_controller import supported_models
+from src_py.air_supervision.modules.model_controller_generic import RETURN_TYPE, config_file
 import logging
 
 mlog = logging.getLogger(__name__)
@@ -14,7 +13,6 @@ json_schema_id = None
 json_schema_repo = None
 _source_id = 0
 
-path = "src_py.air_supervision.modules.model_controller"
 
 # class PREDICTION_STATUS(Enum):
 #     NOT_FITTED_YET = 0
@@ -58,6 +56,7 @@ async def create(conf, engine):
 
 class ReadingsModule(hat.event.server.common.Module):
 
+
     @property
     def async_group(self):
         return self._async_group
@@ -73,6 +72,7 @@ class ReadingsModule(hat.event.server.common.Module):
     def send_message(self, data, type_name):
 
         async def send_log_message():
+
             await self._engine.register(
                 self._source,
                 [_register_event(('gui', 'log', type_name), data)])
@@ -118,7 +118,7 @@ class ReadingsModule(hat.event.server.common.Module):
 
             if request_type == RETURN_TYPE.PREDICT:
 
-                def _process_event(self, event_type, payload, source_timestamp=None):
+                def _process_event(event_type, payload, source_timestamp=None):
                     return self._engine.create_process_event(
                         self._source,
                         _register_event(event_type, payload, source_timestamp))
@@ -151,7 +151,7 @@ class ReadingsModule(hat.event.server.common.Module):
 
 
         self._MODELS[received_model_name] = \
-            getattr(importlib.import_module(path), received_model_name)(self, received_model_name)
+            getattr(importlib.import_module(config_file['local-models-path']), received_model_name)(self, received_model_name)
 
         try:
             self._async_group.spawn(self._MODELS[received_model_name].create_instance)
@@ -177,6 +177,8 @@ class ReadingsModule(hat.event.server.common.Module):
             return self.process_action(event)
 
     def process_reading(self, event):
+
+        self.send_message(config_file['supported-models'], 'supported_models')
 
         if self._current_model_name:
             d = datetime.strptime(event.payload.data['timestamp'], '%Y-%m-%d %H:%M:%S')
@@ -212,8 +214,6 @@ class ReadingsSession(hat.event.server.common.ModuleSession):
         self._engine = engine
         self._module = module
         self._async_group = group
-
-        self._module.send_message(supported_models, 'supported_models')
 
     @property
     def async_group(self):

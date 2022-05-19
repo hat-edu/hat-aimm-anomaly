@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 import hat.aio
 import hat.event.server.common
-
+import yaml
 from enum import Enum
 
 
@@ -12,7 +12,11 @@ class RETURN_TYPE(Enum):
     CREATE = 3
 
 
-path = 'air_supervision.aimm.anomaly_models.'
+with open("modules_config.yaml", "r") as stream:
+    try:
+        config_file = yaml.safe_load(stream)
+    except yaml.YAMLError as exc:
+        print(exc)
 
 
 class GenericModel(ABC):
@@ -60,7 +64,7 @@ class GenericModel(ABC):
     async def create_instance(self):
 
         event_type = ('aimm', 'create_instance')
-        data = {'model_type': path + self.name,
+        data = {'model_type': config_file["aimm-models-path"] + self.name,
                 'args': [],
                 'kwargs': self.hyperparameters}
         await self._register_event(event_type, data, RETURN_TYPE.CREATE)
