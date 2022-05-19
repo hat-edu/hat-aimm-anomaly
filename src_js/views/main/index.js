@@ -6,24 +6,6 @@ export function vt() {
     return plot();
 }
 
-
-
-export function on_radio_switch(model_type){
-    console.log("Picked: " + model_type);
-    hat.conn.send('timeseries', {'action': 'model_change', 'model': model_type});
-}
-
-export function change_button_color(model_type){
-    const models = r.get('remote','timeseries','info','model_state','models');
-    if (!models) return '';
-    for (const [key, value] of Object.entries(models)) {
-      if (value.split(".").at(-1) === model_type ) return 'border: 3px solid green;'
-
-    }
-    return '';
-
-}
-
 export function plot() {
     let l = r.get('remote', 'timeseries','timestamps','reading').length
     const layout = {
@@ -71,19 +53,26 @@ export function plot() {
     const cur_model_name = r.get('remote','timeseries','info','new_current_model');
     const setting_name = r.get('remote','timeseries','info','setting','name');
 
-    const changed_setting = function (e) {
-         console.log("changed to: " + e.target.value);
-         hat.conn.send('timeseries',
-             {
-             'action': 'setting_change',
-             [setting_name]: e.target.value});
+    function on_radio_switch(model_type){
+        console.log("Picked: " + model_type);
+        hat.conn.send('timeseries', {'action': 'model_change', 'model': model_type});
     }
 
+    function change_button_color(model_type){
+        const models = r.get('remote','timeseries','info','model_state','models');
+        if (!models) return '';
+        for (const [key, value] of Object.entries(models)) {
+          if (value.split(".").at(-1) === model_type ) return 'border: 3px solid green;'
+
+        }
+        return '';
+    }
 
     const generate_setting_inputs = function () {
             if (!r.get('remote','timeseries','info','setting')) return;
 
-            var t = Object.entries(r.get('remote','timeseries','info','setting')).map(function([key,value],index) {
+            var t = Object.entries(r.get('remote','timeseries','info','setting'))
+                .map(function([key,value],index) {
                           return ["div",[
                 ["label",{props: {for: 'input1'}}, key  ],
                 ["input",{
@@ -92,7 +81,6 @@ export function plot() {
                                 id: 'input1',
                                 value: value },
                             on: {
-                                //change: changed_setting
                                 change: function (e) {
                                     console.log("changed to: " + e.target.value);
                                     hat.conn.send('timeseries',
@@ -100,7 +88,6 @@ export function plot() {
                                      'action': 'setting_change',
                                      [key]: e.target.value});
                                 }
-
                             }
                         }],
                     ]]
@@ -108,6 +95,28 @@ export function plot() {
                    });
 
              return ["div",t];
+    }
+
+    const generate_model_buttons = function () {
+        if (!r.get('remote','timeseries','info','supported_models')) return;
+
+        var t = r.get('remote','timeseries','info','supported_models').map(function(value,index) {
+                      return [
+                    "button",
+                    {
+                        props: {
+                            disabled: cur_model_name === value,
+                            type: 'checkbox', id: 'id1',
+                            name: 'modelSelect',
+                            style: change_button_color(value),
+                            value: 'Forest' },
+                        on: {  click: () => on_radio_switch(value) }
+                    },
+                    value
+                    ]
+               });
+
+         return ["div",t];
     }
 
     return ['div',
@@ -118,81 +127,24 @@ export function plot() {
             ["br"],
             generate_setting_inputs(),
             ["br"],
-            // ["button",
-            //         {
-            //             props: {disabled: !cur_model_name , type: 'checkbox', id: 'id1', name: 'modelChange', value: 'none' },
-            //             on: { click: () => change_model_settings() }
-            //
-            //         },
-            //         "Change model settings"
-            // ]
-
         ],
-
-        ["br"],
-        ["br"],
-        ['div',
-            [
-                ["button",
-                    {
-                        props: {
-                            disabled: cur_model_name === 'Forest',
-                            type: 'checkbox', id: 'id1',
-                            name: 'modelSelect',
-                            style: change_button_color('Forest'),
-                            value: 'Forest' },
-                        on: {  click: () => on_radio_switch("Forest") }
-
-                    },
-                    "Forest"
-                ],
-                ["button",
-                    {
-                        props: {
-                            disabled: cur_model_name === 'Cluster',
-                            type: 'checkbox',
-                            id: 'id2',
-                            style: change_button_color('Cluster'),
-                            name: 'modelSelect',
-                            value: 'Cluster' },
-                        on: { click: () => on_radio_switch("Cluster") }
-
-                    },
-                    "Cluster"
-                ],
-                ["button",
-                    {
-                        props: {
-                            disabled: cur_model_name === 'SVM',
-                            type: 'checkbox',
-                            id: 'id3',
-                            style: change_button_color('SVM'),
-                            name: 'modelSelect',
-                            value: 'SVM' },
-                        on: { click: () => on_radio_switch("SVM")}
-
-                    },
-                    "One class SVM"
-                ]
-            ]
-        ],
-        ['div.plot', {
-            plotData: data,
-            props: {
-                style: 'height: 100%'
-            },
-            hook: {
-                insert: vnode => plotly.newPlot(vnode.elm, data, layout, config),
-                update: (oldVnode, vnode) => {
-                    if (u.equals(oldVnode.data.plotData, vnode.data.plotData)) return;
-                    plotly.react(vnode.elm, data, layout, config);
+        ["br"], ["br"],
+        ['div',generate_model_buttons()],
+        ['div.plot',
+            {
+                plotData: data,
+                props: {
+                    style: 'height: 100%'
                 },
-                destroy: vnode => plotly.purge(vnode.elm)
+                hook: {
+                    insert: vnode => plotly.newPlot(vnode.elm, data, layout, config),
+                    update: (oldVnode, vnode) => {
+                        if (u.equals(oldVnode.data.plotData, vnode.data.plotData)) return;
+                        plotly.react(vnode.elm, data, layout, config);
+                    },
+                    destroy: vnode => plotly.purge(vnode.elm)
+                }
             }
-        }
         ]
-
     ];
-
-
 }

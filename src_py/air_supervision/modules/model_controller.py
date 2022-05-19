@@ -3,7 +3,9 @@ import numpy
 import hat.aio
 import hat.event.server.common
 
-from src_py.air_supervision.modules.regression_model_generic import GenericModel
+from src_py.air_supervision.modules.model_controller_generic import GenericModel
+
+supported_models = ['Forest', 'SVM', 'Cluster']
 
 
 class SVM(GenericModel):

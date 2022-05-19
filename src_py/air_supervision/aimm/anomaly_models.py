@@ -12,13 +12,93 @@ from sklearn.cluster import KMeans
 from sklearn.svm import OneClassSVM
 
 
+class GenericAnomalyModel(aimm.plugins.Model):
+    def __init__(self, **kwargs):
+        self.scale_ = -1
+        self.mean_ = -1
+        self.model = None
+        self.hyperparameters = {}
+
+    def _scale(self, x):
+        min_max_scaler = preprocessing.StandardScaler()
+
+        self.mean_ = np.mean(x, axis=0)
+        self.scale_ = np.std(x, axis=0)
+
+        return pd.DataFrame(min_max_scaler.fit_transform(x))
+
+    def predict(self, x):
+        x = pd.DataFrame((x - self.mean_) / self.scale_)
+        return pd.Series(self.model.predict(x)).map({1: 0, -1: 1}).values.tolist()
+
+    def _update_hp(self, **kwargs):
+        changed = False
+        for key, value in kwargs.items():
+            if key in self.hyperparameters:
+                self.hyperparameters[key] = float(value)
+                changed = True
+        return changed
+
+    def fit(self, x, y, **kwargs):
+        self.model.fit(self._scale(x))
+        return self
+
+    def serialize(self):
+        return pickle.dumps(self)
+
+    @classmethod
+    def deserialize(self, b):
+        return pickle.loads(b)
+
+
+@aimm.plugins.model
+class Forest(GenericAnomalyModel):
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        if not self._update_hp(**kwargs):
+            self.hyperparameters = {'contamination': 0.01}
+
+        self.model = IsolationForest(contamination=self.hyperparameters['contamination'])
+
+    def fit(self, x, y, **kwargs):
+
+        if self._update_hp(**kwargs):
+            self.model = IsolationForest(contamination=self.hyperparameters['contamination'])
+
+        super().fit(x, y, **kwargs)
+        return self
+
+
+@aimm.plugins.model
+class SVM(GenericAnomalyModel):
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        if not self._update_hp(**kwargs):
+            self.hyperparameters = {'contamination': 0.05}
+
+        self.model = OneClassSVM(nu=0.95 * self.hyperparameters['contamination'])
+        # nu=0.95 * outliers_fraction  + 0.05
+
+    def fit(self, x, y, **kwargs):
+
+        if self._update_hp(**kwargs):
+            self.model = OneClassSVM(nu=0.95 * self.hyperparameters['contamination'])
+
+        super().fit(x, y, **kwargs)
+        return self
+
+
 @aimm.plugins.model
 class Cluster(aimm.plugins.Model):
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         pass
 
-    def fit(self, x, y):
+    def fit(self, x, y, **kwargs):
 
         data = x[['value', 'hours', 'daylight', 'DayOfTheWeek', 'WeekDay']]
 
@@ -81,104 +161,4 @@ class Cluster(aimm.plugins.Model):
         return pickle.loads(b)
 
 
-@aimm.plugins.model
-class Forest(aimm.plugins.Model):
-
-    def __init__(self):
-        self.outliers_fraction = 0.2
-        self.model = IsolationForest(contamination=self.outliers_fraction)
-
-        self.scale_ = -1
-        self.mean_ = -1
-
-    def fit(self, x, y, **kwargs):
-
-        if 'contamination' in kwargs:
-            if 0 < float(kwargs['contamination']) <= 0.5:
-                self.outliers_fraction = float(kwargs['contamination'])
-                self.model = IsolationForest(contamination=self.outliers_fraction)
-
-        min_max_scaler = preprocessing.StandardScaler()
-
-        self.mean_ = np.mean(x, axis=0)
-        self.scale_ = np.std(x, axis=0)
-
-        data = pd.DataFrame(min_max_scaler.fit_transform(x))
-
-        # train isolation forest
-        self.model.fit(data)
-        return self
-
-    def predict(self, x):
-
-        x = pd.DataFrame((x - self.mean_) / self.scale_)
-        return pd.Series(self.model.predict(x)).map({1: 0, -1: 1}).values.tolist()
-
-
-    def serialize(self):
-        return pickle.dumps(self)
-
-    @classmethod
-    def deserialize(cls, b):
-        return pickle.loads(b)
-
-@aimm.plugins.model
-class SVM(aimm.plugins.Model):
-
-    def __init__(self):
-        outliers_fraction = 0.05
-        self.model = OneClassSVM(nu=0.95 * outliers_fraction)  # nu=0.95 * outliers_fraction  + 0.05
-
-        self.scale_ = -1
-        self.mean_ = -1
-
-    def fit(self, x, y):
-        min_max_scaler = preprocessing.StandardScaler()
-
-        self.mean_ = np.mean(x, axis=0)
-        self.scale_ = np.std(x, axis=0)
-
-        data = pd.DataFrame(min_max_scaler.fit_transform(x))
-
-        # train isolation forest
-        self.model.fit(data)
-        return self
-
-    def predict(self, x):
-
-        x = pd.DataFrame((x - self.mean_) / self.scale_)
-        return pd.Series(self.model.predict(x)).map({1: 0, -1: 1}).values.tolist()
-
-
-    def serialize(self):
-        return pickle.dumps(self)
-
-    @classmethod
-    def deserialize(cls, b):
-        return pickle.loads(b)
-
-
-@aimm.plugins.model
-class constant(aimm.plugins.Model):
-
-    def __init__(self):
-        # self._linear = LinearRegression()
-        pass
-
-    def fit(self, X, y):
-        self._linear = self._linear.fit(X, y)
-        return self
-
-    def predict(self, X):
-        # return self._linear.predict(X)
-
-        return [800] * len(X)
-
-
-    def serialize(self):
-        return pickle.dumps(self)
-
-    @classmethod
-    def deserialize(cls, b):
-        return pickle.loads(b)
 

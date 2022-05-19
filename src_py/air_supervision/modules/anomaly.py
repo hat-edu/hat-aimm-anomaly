@@ -1,25 +1,20 @@
-from hat import util
 import hat.aio
 import hat.event.server.common
-from aimm.client import repl
-from enum import Enum
-import pandas as pd
 import sys
-import os
 import numpy as np
 from datetime import datetime
-
 sys.path.insert(0, '../../')
 import importlib
-# from src_py.air_supervision.modules.SVR import MultiOutputSVR, constant
-from src_py.air_supervision.modules.regression_model_generic import RETURN_TYPE
-
+from src_py.air_supervision.modules.model_controller_generic import RETURN_TYPE
+from src_py.air_supervision.modules.model_controller import supported_models
 import logging
 
 mlog = logging.getLogger(__name__)
 json_schema_id = None
 json_schema_repo = None
 _source_id = 0
+
+path = "src_py.air_supervision.modules.model_controller"
 
 # class PREDICTION_STATUS(Enum):
 #     NOT_FITTED_YET = 0
@@ -28,7 +23,6 @@ _source_id = 0
 
 async def create(conf, engine):
     module = ReadingsModule()
-    # module.model_control = ModelControl()
 
     global _source_id
     module._source = hat.event.server.common.Source(
@@ -112,7 +106,8 @@ class ReadingsModule(hat.event.server.common.Module):
                 try:
                     self._async_group.spawn(self._MODELS[model_name].fit)
                     self.send_message(model_name, 'new_current_model')
-                    hyperparameters = self._MODELS[model_name].get_default_setting() #{'name': 'Precision', 'value': 0.02}
+                    hyperparameters = self._MODELS[
+                        model_name].get_default_setting()  # {'name': 'Precision', 'value': 0.02}
                     self.send_message(hyperparameters, 'setting')
                 except:
                     pass
@@ -122,12 +117,19 @@ class ReadingsModule(hat.event.server.common.Module):
                 pass
 
             if request_type == RETURN_TYPE.PREDICT:
+
+                def _process_event(self, event_type, payload, source_timestamp=None):
+                    return self._engine.create_process_event(
+                        self._source,
+                        _register_event(event_type, payload, source_timestamp))
+
+
                 # send to adapter
 
                 vals = np.array(self._predictions[-5:])[:, 0]
 
                 rez = [
-                    self._process_event(
+                    _process_event(
                         ('gui', 'system', 'timeseries', 'forecast'), {
                             'timestamp': t,
                             'is_anomaly': r,
@@ -138,6 +140,33 @@ class ReadingsModule(hat.event.server.common.Module):
                 self._predictions_times = self._predictions_times[-5:]
                 self._predictions = self._predictions[-5:]
                 return rez
+
+    def process_model_change(self, event):
+        received_model_name = event.payload.data['model']
+
+        if received_model_name in self._MODELS:
+            self._current_model_name = received_model_name
+            self.send_message(received_model_name, 'new_current_model')
+            return
+
+
+        self._MODELS[received_model_name] = \
+            getattr(importlib.import_module(path), received_model_name)(self, received_model_name)
+
+        try:
+            self._async_group.spawn(self._MODELS[received_model_name].create_instance)
+        except:
+            pass
+
+    def process_setting_change(self, event):
+
+        kw = event.payload.data
+        del kw['action']
+
+        try:
+            self._async_group.spawn(self._MODELS[self._current_model_name].fit, **kw)
+        except:
+            pass
 
     def process_aimm(self, event):
 
@@ -170,51 +199,11 @@ class ReadingsModule(hat.event.server.common.Module):
                     pass
                 self.data_tracker = 0
 
-    def process_model_change(self, event):
-        received_model_name = event.payload.data['model']
-
-        if received_model_name in self._MODELS:
-            self._current_model_name = received_model_name
-            self.send_message(received_model_name, 'new_current_model')
-            return
-
-        path = "src_py.air_supervision.modules.regression_models"
-        self._MODELS[received_model_name] = \
-            getattr(importlib.import_module(path), received_model_name)(self, received_model_name)
-
-        try:
-            self._async_group.spawn(self._MODELS[received_model_name].create_instance)
-        except:
-            pass
-
-    def process_setting_change(self, event):
-
-        kw = event.payload.data
-        del kw['action']
-
-        try:
-            self._async_group.spawn(self._MODELS[self._current_model_name].fit, **kw)
-        except:
-            pass
-
-
-        # self._async_group.spawn(self._MODELS[model_name].fit)
-        # self.send_message(model_name, 'new_current_model')
-        # setting = self._MODELS[model_name].get_default_setting()  # {'name': 'Precision', 'value': 0.02}
-        # self.send_message(setting, 'setting')
-
-
     def process_back_value(self, event):
-
         {
             'setting_change': self.process_setting_change,
             'model_change': self.process_model_change
         }[event.event_type[-1]](event)
-
-    def _process_event(self, event_type, payload, source_timestamp=None):
-        return self._engine.create_process_event(
-            self._source,
-            _register_event(event_type, payload, source_timestamp))
 
 
 class ReadingsSession(hat.event.server.common.ModuleSession):
@@ -223,6 +212,8 @@ class ReadingsSession(hat.event.server.common.ModuleSession):
         self._engine = engine
         self._module = module
         self._async_group = group
+
+        self._module.send_message(supported_models, 'supported_models')
 
     @property
     def async_group(self):

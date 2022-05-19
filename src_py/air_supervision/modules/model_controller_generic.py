@@ -12,6 +12,9 @@ class RETURN_TYPE(Enum):
     CREATE = 3
 
 
+path = 'air_supervision.aimm.anomaly_models.'
+
+
 class GenericModel(ABC):
 
     def get_default_setting(self):
@@ -54,12 +57,12 @@ class GenericModel(ABC):
 
             await self._register_event(event_type, data, RETURN_TYPE.FIT)
 
-    async def create_instance(self, **kwargs):
+    async def create_instance(self):
 
         event_type = ('aimm', 'create_instance')
-        data = {'model_type': 'air_supervision.aimm.regression_models.' + self.name,
+        data = {'model_type': path + self.name,
                 'args': [],
-                'kwargs': kwargs}
+                'kwargs': self.hyperparameters}
         await self._register_event(event_type, data, RETURN_TYPE.CREATE)
 
     async def predict(self, model_input):
@@ -92,4 +95,3 @@ class GenericModel(ABC):
                     int(timestamp.weekday() < 5)
                 ])
         return train_data
-
