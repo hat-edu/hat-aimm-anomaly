@@ -33,6 +33,7 @@ module_engine:
       - module: air_supervision.modules.readings
       - module: air_supervision.modules.anomaly
       - module: air_supervision.modules.enable_all
+
 monitor:
     component_address: tcp+sbs://127.0.0.1:23012
     group: event

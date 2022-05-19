@@ -5,7 +5,7 @@ import numpy as np
 from datetime import datetime
 sys.path.insert(0, '../../')
 import importlib
-from src_py.air_supervision.modules.model_controller_generic import RETURN_TYPE, config_file
+from src_py.air_supervision.modules.model_controller_generic import RETURN_TYPE
 import logging
 
 mlog = logging.getLogger(__name__)
@@ -118,6 +118,8 @@ class ReadingsModule(hat.event.server.common.Module):
 
             if request_type == RETURN_TYPE.PREDICT:
 
+
+
                 def _process_event(event_type, payload, source_timestamp=None):
                     return self._engine.create_process_event(
                         self._source,
@@ -128,6 +130,10 @@ class ReadingsModule(hat.event.server.common.Module):
 
                 vals = np.array(self._predictions[-5:])[:, 0]
 
+                org_vals_from_aimm = np.array(event.payload.data['result'])[:, 0]
+
+                results = np.array(event.payload.data['result'])[:, -1]
+
                 rez = [
                     _process_event(
                         ('gui', 'system', 'timeseries', 'forecast'), {
@@ -135,7 +141,7 @@ class ReadingsModule(hat.event.server.common.Module):
                             'is_anomaly': r,
                             'value': v
                         })
-                    for r, t, v in zip(event.payload.data['result'], self._predictions_times[-5:], vals)]
+                    for r, t, v in zip(results, self._predictions_times[-5:], vals)]
 
                 self._predictions_times = self._predictions_times[-5:]
                 self._predictions = self._predictions[-5:]
@@ -151,7 +157,7 @@ class ReadingsModule(hat.event.server.common.Module):
 
 
         self._MODELS[received_model_name] = \
-            getattr(importlib.import_module(config_file['local-models-path']), received_model_name)(self, received_model_name)
+            getattr(importlib.import_module("src_py.air_supervision.modules.model_controller"), received_model_name)(self, received_model_name)
 
         try:
             self._async_group.spawn(self._MODELS[received_model_name].create_instance)
@@ -178,7 +184,7 @@ class ReadingsModule(hat.event.server.common.Module):
 
     def process_reading(self, event):
 
-        self.send_message(config_file['supported-models'], 'supported_models')
+        self.send_message(["Forest","SVM","Cluster"], 'supported_models')
 
         if self._current_model_name:
             d = datetime.strptime(event.payload.data['timestamp'], '%Y-%m-%d %H:%M:%S')

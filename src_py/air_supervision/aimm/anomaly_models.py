@@ -29,7 +29,10 @@ class GenericAnomalyModel(aimm.plugins.Model):
 
     def predict(self, x):
         x = pd.DataFrame((x - self.mean_) / self.scale_)
-        return pd.Series(self.model.predict(x)).map({1: 0, -1: 1}).values.tolist()
+        rez = pd.Series(self.model.predict(x)).map({1: 0, -1: 1}).values.tolist()
+        x = pd.DataFrame(x*self.scale_ + self.mean_)
+        x['result'] = rez
+        return x.values.tolist()
 
     def _update_hp(self, **kwargs):
         changed = False

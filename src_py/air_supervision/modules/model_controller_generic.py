@@ -12,11 +12,11 @@ class RETURN_TYPE(Enum):
     CREATE = 3
 
 
-with open("modules_config.yaml", "r") as stream:
-    try:
-        config_file = yaml.safe_load(stream)
-    except yaml.YAMLError as exc:
-        print(exc)
+# with open("modules_config.yaml", "r") as stream:
+#     try:
+#         config_file = yaml.safe_load(stream)
+#     except yaml.YAMLError as exc:
+#         print(exc)
 
 
 class GenericModel(ABC):
@@ -64,7 +64,7 @@ class GenericModel(ABC):
     async def create_instance(self):
 
         event_type = ('aimm', 'create_instance')
-        data = {'model_type': config_file["aimm-models-path"] + self.name,
+        data = {'model_type':  "air_supervision.aimm.anomaly_models" + "." + self.name,
                 'args': [],
                 'kwargs': self.hyperparameters}
         await self._register_event(event_type, data, RETURN_TYPE.CREATE)
@@ -90,6 +90,8 @@ class GenericModel(ABC):
                 value = float(line[0].split(',')[1])
 
                 value = (float(value) - 32) * 5 / 9
+
+
 
                 train_data.append([
                     value,
